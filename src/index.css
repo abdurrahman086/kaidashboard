@@ -54,6 +54,9 @@
     --pulse-disconnected: 0 84% 60%;
     --dashed-border: 215 20% 80%;
     --overlay-disabled: 0 0% 100%;
+    --terminal-bg: 220 20% 8%;
+    --terminal-foreground: 142 71% 55%;
+    --terminal-muted: 210 10% 50%;
   }
 
   .dark {

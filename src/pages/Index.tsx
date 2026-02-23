@@ -4,11 +4,14 @@ import BottomNavbar from "@/components/BottomNavbar";
 import HomeView from "@/components/HomeView";
 import ConfigView from "@/components/ConfigView";
 import JsonGuideModal from "@/components/JsonGuideModal";
+import ActivityLog from "@/components/ActivityLog";
 import { useFirebase } from "@/hooks/useFirebase";
+import { useActivityLog } from "@/hooks/useActivityLog";
 
 const Index = () => {
   const [activeView, setActiveView] = useState<"home" | "config">("home");
   const [showJsonGuide, setShowJsonGuide] = useState(false);
+  const { logs, addLog } = useActivityLog();
 
   const {
     config,
@@ -22,7 +25,7 @@ const Index = () => {
     setDeviceValue,
     startSimulator,
     stopSimulator,
-  } = useFirebase();
+  } = useFirebase(addLog);
 
   const headerTitle = activeView === "home" ? "Dashboard" : "Configuration";
 
@@ -36,12 +39,15 @@ const Index = () => {
 
       <main className="pt-4">
         {activeView === "home" ? (
-          <HomeView
-            devices={devices}
-            isConnected={isConnected}
-            onSetValue={setDeviceValue}
-            onDelete={deleteDevice}
-          />
+          <>
+            <HomeView
+              devices={devices}
+              isConnected={isConnected}
+              onSetValue={setDeviceValue}
+              onDelete={deleteDevice}
+            />
+            <ActivityLog logs={logs} />
+          </>
         ) : (
           <ConfigView
             config={config}
