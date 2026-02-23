@@ -40,13 +40,18 @@ function persistConfig(config: FirebaseConfig) {
   } catch {}
 }
 
-export function useFirebase() {
+type LogFn = (message: string, type?: "info" | "success" | "error" | "warn") => void;
+
+export function useFirebase(addLog?: LogFn) {
   const [config, setConfigState] = useState<FirebaseConfig>(loadConfig);
   const [isConnected, setIsConnected] = useState(false);
   const [devices, setDevices] = useState<DeviceData>({});
   const appRef = useRef<FirebaseApp | null>(null);
   const dbRef = useRef<Database | null>(null);
   const intervalRef = useRef<number | null>(null);
+  const log = useCallback((msg: string, type?: "info" | "success" | "error" | "warn") => {
+    addLog?.(msg, type);
+  }, [addLog]);
 
   const setConfig = useCallback((c: FirebaseConfig) => {
     setConfigState(c);
@@ -54,7 +59,10 @@ export function useFirebase() {
   }, []);
 
   const connect = useCallback(() => {
-    if (!config.apiKey || !config.databaseURL) return;
+    if (!config.apiKey || !config.databaseURL) {
+      log("Error: API Key and Database URL are required", "error");
+      return;
+    }
     try {
       if (appRef.current) {
         deleteApp(appRef.current);
@@ -69,23 +77,40 @@ export function useFirebase() {
 
       const connectedRef = ref(db, ".info/connected");
       onValue(connectedRef, (snap) => {
-        setIsConnected(snap.val() === true);
+        const connected = snap.val() === true;
+        setIsConnected(connected);
+        if (connected) {
+          log(`Database Connected to ${config.databaseURL}`, "success");
+        }
       });
 
       const dataRef = ref(db, config.rootNode);
       onValue(dataRef, (snap) => {
         const data = snap.val();
         if (data && typeof data === "object") {
-          setDevices(data as DeviceData);
+          // Normalize: iterate keys, default null/"" values to 0
+          const normalized: DeviceData = {};
+          Object.keys(data).forEach((key) => {
+            const node = data[key];
+            if (!node || typeof node !== "object") return;
+            normalized[key] = {
+              tipe: node.tipe || "sensor",
+              value: (node.value === null || node.value === undefined || node.value === "") ? 0 : Number(node.value),
+              batas_atas: node.batas_atas != null ? Number(node.batas_atas) : undefined,
+              satuan: node.satuan || undefined,
+            };
+          });
+          setDevices(normalized);
         } else {
           setDevices({});
         }
       });
-    } catch (e) {
+    } catch (e: any) {
+      log(`Error: ${e.message || e}`, "error");
       console.error("Firebase connection error:", e);
       setIsConnected(false);
     }
-  }, [config]);
+  }, [config, log]);
 
   const disconnect = useCallback(() => {
     if (intervalRef.current) {
@@ -99,20 +124,23 @@ export function useFirebase() {
     }
     setIsConnected(false);
     setDevices({});
-  }, []);
+    log("Database Disconnected", "warn");
+  }, [log]);
 
   const saveStructure = useCallback(
     (keyName: string, type: string, unit: string, maxValue: number) => {
       if (!dbRef.current || !isConnected) return;
       const nodeRef = ref(dbRef.current, `${config.rootNode}/${keyName}`);
-      const data: Record<string, unknown> = { tipe: type, value: 0 };
-      if (type === "dimmer" || type === "sensor") {
-        data.satuan = unit;
-        data.batas_atas = maxValue;
-      }
+      const data: Record<string, unknown> = {
+        tipe: type,
+        value: 0,
+        satuan: unit || "",
+        batas_atas: maxValue || 100,
+      };
       set(nodeRef, data);
+      log(`New node "${keyName}" created successfully`, "success");
     },
-    [isConnected, config.rootNode]
+    [isConnected, config.rootNode, log]
   );
 
   const deleteDevice = useCallback(
@@ -120,8 +148,9 @@ export function useFirebase() {
       if (!dbRef.current || !isConnected) return;
       const nodeRef = ref(dbRef.current, `${config.rootNode}/${keyName}`);
       remove(nodeRef);
+      log(`Node "${keyName}" deleted`, "warn");
     },
-    [isConnected, config.rootNode]
+    [isConnected, config.rootNode, log]
   );
 
   const setDeviceValue = useCallback(
@@ -129,14 +158,16 @@ export function useFirebase() {
       if (!dbRef.current || !isConnected) return;
       const valueRef = ref(dbRef.current, `${config.rootNode}/${keyName}/value`);
       set(valueRef, value);
+      log(`Value updated for ${keyName}: ${value}`, "info");
     },
-    [isConnected, config.rootNode]
+    [isConnected, config.rootNode, log]
   );
 
   const startSimulator = useCallback(
     (min: number, max: number, intervalMs: number) => {
       if (!dbRef.current || !isConnected) return;
       if (intervalRef.current) clearInterval(intervalRef.current);
+      log(`Simulator started (min: ${min}, max: ${max}, interval: ${intervalMs}ms)`, "success");
 
       intervalRef.current = window.setInterval(() => {
         Object.keys(devices).forEach((key) => {
@@ -154,15 +185,16 @@ export function useFirebase() {
         });
       }, intervalMs);
     },
-    [isConnected, devices, config.rootNode]
+    [isConnected, devices, config.rootNode, log]
   );
 
   const stopSimulator = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
+      log("Simulator stopped", "warn");
     }
-  }, []);
+  }, [log]);
 
   useEffect(() => {
     return () => {
