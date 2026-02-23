@@ -6,8 +6,10 @@ interface ConfigViewProps {
   isConnected: boolean;
   onConfigChange: (config: FirebaseConfig) => void;
   onConnect: () => void;
+  onDisconnect: () => void;
   onSaveStructure: (keyName: string, type: string, unit: string, maxValue: number) => void;
   onStartSimulator: (min: number, max: number, interval: number) => void;
+  onStopSimulator: () => void;
 }
 
 const ConfigView = ({
@@ -15,8 +17,10 @@ const ConfigView = ({
   isConnected,
   onConfigChange,
   onConnect,
+  onDisconnect,
   onSaveStructure,
   onStartSimulator,
+  onStopSimulator,
 }: ConfigViewProps) => {
   const [keyName, setKeyName] = useState("");
   const [type, setType] = useState("switch");
@@ -47,6 +51,7 @@ const ConfigView = ({
           value={config.apiKey}
           onChange={(e) => onConfigChange({ ...config, apiKey: e.target.value })}
           className={inputClass}
+          disabled={isConnected}
         />
         <input
           type="url"
@@ -54,6 +59,7 @@ const ConfigView = ({
           value={config.databaseURL}
           onChange={(e) => onConfigChange({ ...config, databaseURL: e.target.value })}
           className={inputClass}
+          disabled={isConnected}
         />
         <input
           type="text"
@@ -61,13 +67,23 @@ const ConfigView = ({
           value={config.rootNode}
           onChange={(e) => onConfigChange({ ...config, rootNode: e.target.value })}
           className={inputClass}
+          disabled={isConnected}
         />
-        <button
-          onClick={onConnect}
-          className="w-full rounded-2xl bg-primary py-3.5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90"
-        >
-          Connect Database
-        </button>
+        {isConnected ? (
+          <button
+            onClick={onDisconnect}
+            className="w-full rounded-2xl bg-destructive py-3.5 text-sm font-bold text-destructive-foreground transition-opacity hover:opacity-90"
+          >
+            Disconnect
+          </button>
+        ) : (
+          <button
+            onClick={onConnect}
+            className="w-full rounded-2xl bg-primary py-3.5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            Connect Database
+          </button>
+        )}
       </div>
 
       <div className="space-y-6">
@@ -157,18 +173,26 @@ const ConfigView = ({
             onChange={(e) => setSimInterval(e.target.value)}
             className={inputClass}
           />
-          <button
-            onClick={() =>
-              onStartSimulator(
-                Number(simMin) || 0,
-                Number(simMax) || 100,
-                Number(simInterval) || 2000
-              )
-            }
-            className="w-full rounded-2xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            Run Structure
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() =>
+                onStartSimulator(
+                  Number(simMin) || 0,
+                  Number(simMax) || 100,
+                  Number(simInterval) || 2000
+                )
+              }
+              className="w-full rounded-2xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              Run Simulator
+            </button>
+            <button
+              onClick={onStopSimulator}
+              className="w-full rounded-2xl bg-secondary py-3 text-sm font-bold text-secondary-foreground transition-opacity hover:opacity-90"
+            >
+              Stop Simulator
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -16,9 +16,12 @@ const Index = () => {
     isConnected,
     devices,
     connect,
+    disconnect,
     saveStructure,
+    deleteDevice,
     setDeviceValue,
     startSimulator,
+    stopSimulator,
   } = useFirebase();
 
   const headerTitle = activeView === "home" ? "Dashboard" : "Configuration";
@@ -37,6 +40,7 @@ const Index = () => {
             devices={devices}
             isConnected={isConnected}
             onSetValue={setDeviceValue}
+            onDelete={deleteDevice}
           />
         ) : (
           <ConfigView
@@ -44,8 +48,10 @@ const Index = () => {
             isConnected={isConnected}
             onConfigChange={setConfig}
             onConnect={connect}
+            onDisconnect={disconnect}
             onSaveStructure={saveStructure}
             onStartSimulator={startSimulator}
+            onStopSimulator={stopSimulator}
           />
         )}
       </main>

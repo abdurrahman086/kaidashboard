@@ -5,6 +5,7 @@ import {
   ref,
   onValue,
   set,
+  remove,
   Database,
 } from "firebase/database";
 
@@ -23,17 +24,34 @@ export interface DeviceData {
   };
 }
 
+const STORAGE_KEY = "firebase_iot_config";
+
+function loadConfig(): FirebaseConfig {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return { apiKey: "", databaseURL: "", rootNode: "Monitoring" };
+}
+
+function persistConfig(config: FirebaseConfig) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  } catch {}
+}
+
 export function useFirebase() {
-  const [config, setConfig] = useState<FirebaseConfig>({
-    apiKey: "",
-    databaseURL: "",
-    rootNode: "Monitoring",
-  });
+  const [config, setConfigState] = useState<FirebaseConfig>(loadConfig);
   const [isConnected, setIsConnected] = useState(false);
   const [devices, setDevices] = useState<DeviceData>({});
   const appRef = useRef<FirebaseApp | null>(null);
   const dbRef = useRef<Database | null>(null);
   const intervalRef = useRef<number | null>(null);
+
+  const setConfig = useCallback((c: FirebaseConfig) => {
+    setConfigState(c);
+    persistConfig(c);
+  }, []);
 
   const connect = useCallback(() => {
     if (!config.apiKey || !config.databaseURL) return;
@@ -49,13 +67,11 @@ export function useFirebase() {
       const db = getDatabase(app);
       dbRef.current = db;
 
-      // Listen to connection state
       const connectedRef = ref(db, ".info/connected");
       onValue(connectedRef, (snap) => {
         setIsConnected(snap.val() === true);
       });
 
-      // Listen to root node data
       const dataRef = ref(db, config.rootNode);
       onValue(dataRef, (snap) => {
         const data = snap.val();
@@ -95,6 +111,15 @@ export function useFirebase() {
         data.batas_atas = maxValue;
       }
       set(nodeRef, data);
+    },
+    [isConnected, config.rootNode]
+  );
+
+  const deleteDevice = useCallback(
+    (keyName: string) => {
+      if (!dbRef.current || !isConnected) return;
+      const nodeRef = ref(dbRef.current, `${config.rootNode}/${keyName}`);
+      remove(nodeRef);
     },
     [isConnected, config.rootNode]
   );
@@ -153,6 +178,7 @@ export function useFirebase() {
     connect,
     disconnect,
     saveStructure,
+    deleteDevice,
     setDeviceValue,
     startSimulator,
     stopSimulator,
