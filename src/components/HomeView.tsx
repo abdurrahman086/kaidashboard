@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { DeviceData } from "@/hooks/useFirebase";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
+import { Trash2 } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -16,6 +17,7 @@ interface HomeViewProps {
   devices: DeviceData;
   isConnected: boolean;
   onSetValue: (key: string, value: number) => void;
+  onDelete: (key: string) => void;
 }
 
 const EmptySlot = () => (
@@ -34,9 +36,11 @@ interface SensorChartData {
 const SensorChart = ({
   name,
   device,
+  onDelete,
 }: {
   name: string;
   device: { value: number; satuan?: string; batas_atas?: number };
+  onDelete: () => void;
 }) => {
   const [history, setHistory] = useState<SensorChartData[]>([]);
 
@@ -52,9 +56,14 @@ const SensorChart = ({
     <div className="rounded-3xl border-2 border-dashed border-[hsl(var(--dashed-border))] bg-card p-5">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-bold text-foreground text-sm uppercase tracking-wide">{name}</h3>
-        <span className="text-xs font-mono text-muted-foreground">
-          {device.value} {device.satuan || ""}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-mono text-muted-foreground">
+            {device.value} {device.satuan || ""}
+          </span>
+          <button onClick={onDelete} className="text-destructive/60 hover:text-destructive transition-colors">
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
       <div className="h-40">
         <ResponsiveContainer width="100%" height="100%">
@@ -88,7 +97,7 @@ const SensorChart = ({
   );
 };
 
-const HomeView = ({ devices, isConnected, onSetValue }: HomeViewProps) => {
+const HomeView = ({ devices, isConnected, onSetValue, onDelete }: HomeViewProps) => {
   const keys = Object.keys(devices);
 
   if (!isConnected || keys.length === 0) {
@@ -121,10 +130,15 @@ const HomeView = ({ devices, isConnected, onSetValue }: HomeViewProps) => {
                   {device.value === 1 ? "ON" : "OFF"}
                 </p>
               </div>
-              <Switch
-                checked={device.value === 1}
-                onCheckedChange={(checked) => onSetValue(key, checked ? 1 : 0)}
-              />
+              <div className="flex items-center gap-4">
+                <Switch
+                  checked={device.value === 1}
+                  onCheckedChange={(checked) => onSetValue(key, checked ? 1 : 0)}
+                />
+                <button onClick={() => onDelete(key)} className="text-destructive/60 hover:text-destructive transition-colors">
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
           );
         }
@@ -137,9 +151,14 @@ const HomeView = ({ devices, isConnected, onSetValue }: HomeViewProps) => {
             >
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-bold text-foreground text-sm uppercase tracking-wide">{key}</h3>
-                <span className="text-xs font-mono text-muted-foreground">
-                  {device.value} {device.satuan || ""}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-mono text-muted-foreground">
+                    {device.value} {device.satuan || ""}
+                  </span>
+                  <button onClick={() => onDelete(key)} className="text-destructive/60 hover:text-destructive transition-colors">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
               <Slider
                 value={[device.value]}
@@ -152,7 +171,7 @@ const HomeView = ({ devices, isConnected, onSetValue }: HomeViewProps) => {
         }
 
         if (device.tipe === "sensor") {
-          return <SensorChart key={key} name={key} device={device} />;
+          return <SensorChart key={key} name={key} device={device} onDelete={() => onDelete(key)} />;
         }
 
         return null;
